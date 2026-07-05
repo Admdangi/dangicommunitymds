@@ -1,8 +1,8 @@
 <?php
 $host = 'localhost';
-$dbname = 'auth_system';
-$username = 'root'; // Default XAMPP username
-$password = '';     // Default XAMPP password
+$dbname = 'secure_portal';
+$username = 'root'; 
+$password = '';     
 
 $conn = new mysqli($host, $username, $password, $dbname);
 
