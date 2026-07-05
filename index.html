@@ -71,6 +71,7 @@
 </div>
 
 <script>
+    // Utility to show messages on screen
     function showMessage(msg, isSuccess) {
         const msgBox = document.getElementById('messageBox');
         msgBox.textContent = msg;
@@ -78,19 +79,21 @@
         setTimeout(() => msgBox.textContent = '', 5000);
     }
 
+    // Toggle between forms
     function toggleForms() {
         document.getElementById('loginForm').classList.toggle('hidden');
         document.getElementById('registerForm').classList.toggle('hidden');
         document.getElementById('messageBox').textContent = '';
     }
 
+    // Step 1: Request OTP and show it in an alert
     async function requestOTP() {
         const email = document.getElementById('regEmail').value;
         const mobile = document.getElementById('regMobile').value;
 
         if(!email || !mobile) return showMessage("Enter Email and Mobile.", false);
 
-        const response = await fetch('send_otp.php', {
+        const response = await fetch('api/send_otp.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, mobile })
@@ -99,10 +102,16 @@
         const result = await response.json();
         
         if (result.status === 'success') {
-            showMessage(result.message + " (Test OTP: " + result.test_otp + ")", true);
+            // 🚨 THIS IS THE REAL-TIME ALERT YOU REQUESTED 🚨
+            alert("LOCAL TESTING MODE\nYour OTP is: " + result.test_otp);
+
+            showMessage("OTP alert triggered successfully.", true);
+            
+            // Show the next step
             document.getElementById('otpVerificationSection').classList.remove('hidden');
             document.getElementById('sendOtpBtn').classList.add('hidden');
-            // Lock inputs to prevent changing after OTP is sent
+            
+            // Lock inputs so they can't change email/phone after getting the OTP
             document.getElementById('regEmail').disabled = true;
             document.getElementById('regMobile').disabled = true;
         } else {
@@ -110,6 +119,7 @@
         }
     }
 
+    // Step 2: Submit the exact OTP from the alert
     async function submitRegistration() {
         const email = document.getElementById('regEmail').value;
         const mobile = document.getElementById('regMobile').value;
@@ -118,7 +128,7 @@
 
         if(!otp || !password) return showMessage("Enter OTP and Password.", false);
 
-        const response = await fetch('register.php', {
+        const response = await fetch('api/register.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, mobile, otp, password })
@@ -134,13 +144,14 @@
         }
     }
 
+    // Step 3: Login
     async function handleLogin() {
         const loginId = document.getElementById('loginId').value;
         const password = document.getElementById('loginPassword').value;
 
         if(!loginId || !password) return showMessage("Enter ID and Password.", false);
 
-        const response = await fetch('login.php', {
+        const response = await fetch('api/login.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ loginId, password })
@@ -150,7 +161,8 @@
         
         if (result.status === 'success') {
             showMessage(result.message, true);
-            // Redirect to dashboard here: window.location.href = 'dashboard.php';
+            // Redirect to your dashboard
+            // window.location.href = 'dashboard.php';
         } else {
             showMessage(result.message, false);
         }
