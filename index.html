@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Access</title>
+    <title>User Portal</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
-        h2 { text-align: center; color: #333; margin-bottom: 1.5rem; }
+        body { font-family: sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
+        h2 { text-align: center; color: #333; margin-top: 0; }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; color: #666; font-size: 0.9rem; }
-        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #2c3e50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         button:hover { background-color: #1a252f; }
-        .btn-secondary { background-color: #3498db; }
-        .btn-secondary:hover { background-color: #2980b9; }
         .toggle-link { text-align: center; margin-top: 15px; font-size: 0.9rem; color: #3498db; cursor: pointer; }
         .hidden { display: none; }
-        .otp-section { border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; }
-        #messageBox { text-align: center; margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+        .captcha-box { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .captcha-display { background: #eee; padding: 10px; font-family: monospace; font-size: 1.2rem; font-weight: bold; letter-spacing: 3px; border-radius: 4px; flex-grow: 1; text-align: center; text-decoration: line-through; }
+        .captcha-refresh { background: #3498db; padding: 10px; width: auto; margin: 0; }
+        #messageBox { text-align: center; margin-bottom: 15px; font-weight: bold; }
         .success { color: green; }
         .error { color: red; }
     </style>
@@ -30,144 +30,108 @@
 
     <div id="loginForm">
         <h2>System Login</h2>
-        <div class="form-group">
-            <label>Email ID or Mobile Number</label>
-            <input type="text" id="loginId">
-        </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="loginPassword">
-        </div>
-        <button onclick="handleLogin()">Login</button>
+        <div class="form-group"><label>Email ID or Mobile</label><input type="text" id="loginId"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="loginPassword"></div>
+        <button onclick="loginUser()">Login</button>
         <div class="toggle-link" onclick="toggleForms()">Need an account? Register here</div>
+        <div class="toggle-link" style="color:#999; font-size:0.8rem; margin-top: 20px;"><a href="admin.html" style="color:#999;">Admin Login</a></div>
     </div>
 
     <div id="registerForm" class="hidden">
         <h2>Register</h2>
-        <div class="form-group">
-            <label>Gmail ID</label>
-            <input type="email" id="regEmail">
-        </div>
-        <div class="form-group">
-            <label>Mobile Number</label>
-            <input type="tel" id="regMobile">
-        </div>
-        
-        <button type="button" class="btn-secondary" id="sendOtpBtn" onclick="requestOTP()">Send OTP</button>
+        <div class="form-group"><label>Gmail ID</label><input type="email" id="regEmail"></div>
+        <div class="form-group"><label>Mobile Number</label><input type="tel" id="regMobile"></div>
+        <button type="button" id="sendOtpBtn" onclick="generateAndAlertOTP()">Send OTP</button>
 
-        <div id="otpVerificationSection" class="hidden otp-section">
+        <div id="verificationSection" class="hidden" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+            <div class="form-group"><label>Enter 6-Digit OTP</label><input type="text" id="regOtp"></div>
             <div class="form-group">
-                <label>Enter 6-Digit OTP</label>
-                <input type="text" id="regOtp">
+                <label>Security CAPTCHA</label>
+                <div class="captcha-box">
+                    <div id="captchaDisplay" class="captcha-display"></div>
+                    <button class="captcha-refresh" onclick="refreshCaptcha()">↻</button>
+                </div>
+                <input type="text" id="regCaptcha" placeholder="Type the code above">
             </div>
-            <div class="form-group">
-                <label>Create Password</label>
-                <input type="password" id="regPassword">
-            </div>
-            <button onclick="submitRegistration()">Verify & Register</button>
+            <div class="form-group"><label>Create Password</label><input type="password" id="regPassword"></div>
+            <button onclick="verifyAndRegister()">Verify & Register</button>
         </div>
         <div class="toggle-link" onclick="toggleForms()">Already registered? Login here</div>
     </div>
 </div>
 
 <script>
-    // Utility to show messages on screen
+    let currentValidOTP = "";
+    let currentValidCaptcha = "";
+
     function showMessage(msg, isSuccess) {
-        const msgBox = document.getElementById('messageBox');
-        msgBox.textContent = msg;
-        msgBox.className = isSuccess ? 'success' : 'error';
-        setTimeout(() => msgBox.textContent = '', 5000);
+        const box = document.getElementById('messageBox');
+        box.textContent = msg; box.className = isSuccess ? 'success' : 'error';
+        setTimeout(() => box.textContent = '', 4000);
     }
 
-    // Toggle between forms
     function toggleForms() {
         document.getElementById('loginForm').classList.toggle('hidden');
         document.getElementById('registerForm').classList.toggle('hidden');
         document.getElementById('messageBox').textContent = '';
     }
 
-    // Step 1: Request OTP and show it in an alert
-    async function requestOTP() {
+    function generateAndAlertOTP() {
         const email = document.getElementById('regEmail').value;
         const mobile = document.getElementById('regMobile').value;
+        if(!email || !mobile) return showMessage("Please enter Email and Mobile.", false);
 
-        if(!email || !mobile) return showMessage("Enter Email and Mobile.", false);
-
-        const response = await fetch('api/send_otp.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, mobile })
-        });
+        currentValidOTP = Math.floor(100000 + Math.random() * 900000).toString();
+        alert("Verification System\n\nYour OTP is: " + currentValidOTP);
         
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            // 🚨 THIS IS THE REAL-TIME ALERT YOU REQUESTED 🚨
-            alert("LOCAL TESTING MODE\nYour OTP is: " + result.test_otp);
-
-            showMessage("OTP alert triggered successfully.", true);
-            
-            // Show the next step
-            document.getElementById('otpVerificationSection').classList.remove('hidden');
-            document.getElementById('sendOtpBtn').classList.add('hidden');
-            
-            // Lock inputs so they can't change email/phone after getting the OTP
-            document.getElementById('regEmail').disabled = true;
-            document.getElementById('regMobile').disabled = true;
-        } else {
-            showMessage(result.message, false);
-        }
+        document.getElementById('verificationSection').classList.remove('hidden');
+        document.getElementById('sendOtpBtn').classList.add('hidden');
+        document.getElementById('regEmail').disabled = true; document.getElementById('regMobile').disabled = true;
+        refreshCaptcha();
     }
 
-    // Step 2: Submit the exact OTP from the alert
-    async function submitRegistration() {
-        const email = document.getElementById('regEmail').value;
-        const mobile = document.getElementById('regMobile').value;
-        const otp = document.getElementById('regOtp').value;
+    function refreshCaptcha() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let captcha = '';
+        for (let i = 0; i < 5; i++) captcha += chars.charAt(Math.floor(Math.random() * chars.length));
+        currentValidCaptcha = captcha; document.getElementById('captchaDisplay').textContent = captcha;
+    }
+
+    async function verifyAndRegister() {
+        const inputOtp = document.getElementById('regOtp').value;
+        const inputCaptcha = document.getElementById('regCaptcha').value;
         const password = document.getElementById('regPassword').value;
 
-        if(!otp || !password) return showMessage("Enter OTP and Password.", false);
+        if (inputOtp !== currentValidOTP) return showMessage("Invalid OTP.", false);
+        if (inputCaptcha !== currentValidCaptcha) {
+            refreshCaptcha(); document.getElementById('regCaptcha').value = '';
+            return showMessage("Invalid Captcha.", false);
+        }
+        if (!password) return showMessage("Create a password.", false);
 
         const response = await fetch('api/register.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, mobile, otp, password })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('regEmail').value, mobile: document.getElementById('regMobile').value, password })
         });
-        
         const result = await response.json();
-        
         if (result.status === 'success') {
-            showMessage(result.message, true);
-            setTimeout(toggleForms, 2000); // Switch to login screen after 2 seconds
-        } else {
-            showMessage(result.message, false);
-        }
+            showMessage(result.message, true); setTimeout(() => window.location.reload(), 2000);
+        } else showMessage(result.message, false);
     }
 
-    // Step 3: Login
-    async function handleLogin() {
+    async function loginUser() {
         const loginId = document.getElementById('loginId').value;
         const password = document.getElementById('loginPassword').value;
-
         if(!loginId || !password) return showMessage("Enter ID and Password.", false);
 
         const response = await fetch('api/login.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ loginId, password })
         });
-        
         const result = await response.json();
-        
         if (result.status === 'success') {
-            showMessage(result.message, true);
-            // Redirect to your dashboard
-            // window.location.href = 'dashboard.php';
-        } else {
-            showMessage(result.message, false);
-        }
+            window.location.href = 'dashboard.php';
+        } else showMessage(result.message, false);
     }
 </script>
-
 </body>
 </html>
